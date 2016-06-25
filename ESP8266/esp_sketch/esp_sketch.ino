@@ -1,16 +1,17 @@
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
 
-#define MQTT_SERVER "192.168.2.29"
-const char* ssid = "essid";
-const char* password = "pw";
-char* subTopic = "/temp/drinnen";
+// Der ESP wird als Ausgabe entweder <DBG> und darauf folgende Debuggingmessages ausgeben oder /topic/subtopic:message.
+char* mqtt_server = "192.168.1.116";
+char* ssid = "Filebitch";
+char* password = "ChaosComputerClub";
+char* subTopic = "/test";
 
 
 void callback(char* topic, byte* payload, unsigned int length);
 
 WiFiClient wifiClient;
-PubSubClient client(MQTT_SERVER, 1883, callback, wifiClient);
+PubSubClient client(mqtt_server, 1883, callback, wifiClient);
 
 void setup() {
 	// Output auf 115200 baud
@@ -47,40 +48,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void reconnect() {
 	//attempt to connect to the wifi if connection is lost
 	if(WiFi.status() != WL_CONNECTED){
-		Serial.print("Connecting to ");
+		Serial.print("<DBG> Connecting to ");
 		Serial.println(ssid);
 		//loop while we wait for connection
 		while (WiFi.status() != WL_CONNECTED) {
 			delay(500);
-			Serial.print(".");
 		}
 
 		//print out some more debug once connected
-		Serial.println("");
-		Serial.println("WiFi connected");  
-		Serial.println("IP address: ");
+		Serial.println("<DBG> WiFi connected");  
+		Serial.print("<DBG> IP address: ");
 		Serial.println(WiFi.localIP());
 	}
 
 	//make sure we are connected to WIFI before attemping to reconnect to MQTT
 	if(WiFi.status() == WL_CONNECTED){
-		// Loop until we're reconnected to the MQTT server
-		while (!client.connected()) {
-			Serial.print("Attempting MQTT connection...");
-
-			// Generate client name based on MAC address and last 8 bits of microsecond counter
-			String clientName = "esp8266";
-
-			//if connected, subscribe to the topic(s) we want to be notified about
-			if (client.connect((char*) clientName.c_str())) {
-				Serial.println("\tMQTT Connected");
-				client.subscribe(subTopic);
-			}
-			//otherwise print failed for debugging
-			else{
-				Serial.println("\tFailed."); 
-				abort();
-			}
+		Serial.println("<DBG> Attempting MQTT connection...");
+		//if connected, subscribe to the topic(s) we want to be notified about
+		if (client.connect("esp8266")) {
+			Serial.println("<DBG> MQTT Connected");
+			client.subscribe(subTopic);
 		}
 	}
 }
