@@ -2,15 +2,23 @@
 #include <PubSubClient.h>
 #include <ESP8266WiFi.h>
 
-// Der ESP wird als Ausgabe entweder <DBG> und darauf folgende Debuggingmessages ausgeben oder /topic/subtopic:message.
-char* mqtt_server = "192.168.1.116";
-char* ssid = "Filebitch";
-char* password = "ChaosComputerClub";
-char* subTopic = "/test";
+// Der ESP wird als Ausgabe entweder <DBG> und darauf folgende Debuggingmessages ausgeben 
+// oder /topic/subtopic:message.
+// Server
+char* mqtt_server = "ip-adress";
+// SSID
+char* ssid = "ssid";
+// WLAN passwd
+char* password = "pw";
+// The Topics to subscribe to
+char* subTopics[] = {"/temp/drinnen", "/temp/draussen", "/time"};
+int topics = 3;
 
 // Diese Funktion wird aufgerufen wenn etwas neues an ein abonniertes
 // Thema gesendet wird.
 void callback(char* topic, byte* payload, unsigned int length) {
+	Serial.print(topic);
+	Serial.print(":");
 	// Einmal die ganze Payload durcharbeiten...
 	for(int i = 0; i < length; i++) {
 		// und Seriell ausgeben
@@ -61,7 +69,7 @@ void reconnect() {
 		}
 		
 		//print out some more debug once connected
-		Serial.println("<DBG> WiFi connected");  
+		Serial.println("<DBG> WLAN connected");  
 		Serial.print("<DBG> IP address: ");
 		Serial.println(WiFi.localIP());
 	}
@@ -73,7 +81,9 @@ void reconnect() {
 		//if connected, subscribe to the topic(s) we want to be notified about
 		if (client.connect("esp8266")) {
 			Serial.println("<DBG> MQTT Connected");
-			client.subscribe(subTopic);
+			for(int i = 0; i < topics; i++) {
+				client.subscribe(subTopics[i]);
+			}
 		}
 	}
 }
