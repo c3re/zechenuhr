@@ -5,13 +5,17 @@
 // Der ESP wird als Ausgabe entweder <DBG> und darauf folgende Debuggingmessages ausgeben 
 // oder /topic/subtopic:message.
 // Server
+String s_mqtt_server = "";
 const char* mqtt_server;
 // SSID
+String s_ssid = "";
 const char* ssid;
 // WLAN passwd
+String s_pw = "";
 const char* password;
 // The Topics to subscribe to
 const char* subTopics[255];
+String s_subTopics[255];
 int topics = 0;
 // von Beginn an ist der ESP erst einmal nicht konfiguriert.
 boolean configured = false;
@@ -49,6 +53,9 @@ void loop() {
 	client.loop();
 	// Dieses warten braucht der ESP anscheinend fuer die WLAN-Verwaltung.
 	delay(10); 
+	
+	// maybe someone wants to publish something so lets check the serial line:
+	serial_publish();
 }
 
 
@@ -72,7 +79,8 @@ void reconnect() {
 	// Wenn wir verbunden sind dann soll es losgehen mit dem herstellen der
 	// MQTT Verbindung
 	if(WiFi.status() == WL_CONNECTED){
-		Serial.println("<DBG> Attempting MQTT connection...");
+		Serial.print("<DBG> Attempting MQTT connection to: ");
+		Serial.println(mqtt_server);
 		client.setServer(mqtt_server, 1883);
 		//if connected, subscribe to the topic(s) we want to be notified about
 		if (client.connect("esp8266")) {
@@ -100,18 +108,12 @@ void configure() {
 			if(c=='\r') {
 				// set configured, so it is not run again
 				configured = true;
-				// empty strings to buffer chars into
-				String s_mqtt_server = "";
-				String s_ssid = "";
-				String s_pw = "";
 				// the delimcount starts at one because the first char has to be one
 				int delimcount = 1;
 				// this number tells us the position in the config string where the first char describing topics is
 				int startOfTopics = 0;
 				// as i said first char is delim
 				char delim = config.charAt(0);
-				// indeed it isnt configured yet but we are printing it ;-)
-				Serial.println("<DBG> System configured. Here is your config: ");
 				// parse every little char start with 1 because 0 is delim
 				for(int i = 1; i < config.length(); i++) {
 					// either it is the delim
@@ -136,6 +138,12 @@ void configure() {
 						}
 					}
 				}
+				// write pointers.	
+				mqtt_server=s_mqtt_server.c_str();
+				ssid=s_ssid.c_str();
+				password=s_pw.c_str();
+
+
 				// the amount of topics is the delimiters - 3 for ip, ssid and pw
 				topics = delimcount - 3;
 				if(topics < 1) { // you need to subscribe to at least one topic or
@@ -145,7 +153,6 @@ void configure() {
 				}
 				// parsing of the topics
 				// array of stringbuffers
-				String s_subTopics[topics];
 				// start at topic zero
 				int topiccounter = 0;
 				// for all chars starting at "startOfTopics"
@@ -164,14 +171,13 @@ void configure() {
 				}
 				// last one has to be done manually because there is no delim behind it.
 				subTopics[topics - 1] = s_subTopics[topics - 1].c_str();
-				mqtt_server=s_mqtt_server.c_str();
+				// Print a bunch of debug stuff
+				Serial.println("<DBG> System configured. Here is your config: ");
 				Serial.print("<DBG> MQTT-Server: ");
 				Serial.println(mqtt_server);
-				ssid=s_ssid.c_str();
 				Serial.print("<DBG> SSID: ");
 				Serial.println(ssid);
 				Serial.print("<DBG> pw: ");
-				password=s_pw.c_str();
 				Serial.println(s_pw);
 				Serial.print("<DBG> You subscribed to ");
 				Serial.print(topics);
@@ -191,4 +197,53 @@ void configure() {
 			}
 		}
         }
+}
+void serial_publish() {
+	client.publish("/malte", "test");
+	if(Serial.available()) {
+		// create Buffer:
+		String buf = "";
+		String topic = "";
+		String message = "";
+		char delim;
+		// get the whole line
+		while(Serial.available()) {
+			// append
+			char c = Serial.read();
+			// process the lne after return
+			if(c == '\r') {
+				// delim is char 0
+				char delim = buf.charAt(0);
+				int delimcount = 1;
+				// process the whole message
+				for(int i = 1; i < buf.length(); i++) {
+					// if delim
+					if(buf.charAt(i) == delim) {
+						// inc delimcount
+						delimcount++;
+					}
+					else {
+						//if topic part 
+						if(delimcount == 1) {
+							topic.concat(buf.charAt(i));
+						} else {
+						// everything else belongs to the message
+							message.concat(buf.charAt(i));
+
+						}
+					}
+				}
+				// do a loop and publish
+				if(client.loop() &&  client.publish(topic.c_str(), message.c_str())) {
+					Serial.println("<DBG> Successfully sent your message.");
+				} else {
+					Serial.println("<DBG> Sorry, wasn't able to send your message.");
+				}
+			}
+			// if char != return concat to buffer
+			else {
+				buf.concat(c);
+			}
+		}
+	}
 }
