@@ -5,15 +5,16 @@
 // Der ESP wird als Ausgabe entweder <DBG> und darauf folgende Debuggingmessages ausgeben 
 // oder /topic/subtopic:message.
 // Server
-char* mqtt_server = "ip-adress";
+const char* mqtt_server;
 // SSID
-char* ssid = "ssid";
+const char* ssid;
 // WLAN passwd
-char* password = "pw";
+const char* password;
 // The Topics to subscribe to
-char* subTopics[] = {"/temp/drinnen", "/temp/draussen", "/time"};
-int topics = 3;
-
+const char* subTopics[255];
+int topics = 0;
+// von Beginn an ist der ESP erst einmal nicht konfiguriert.
+boolean configured = false;
 // Diese Funktion wird aufgerufen wenn etwas neues an ein abonniertes
 // Thema gesendet wird.
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -34,14 +35,8 @@ PubSubClient client(mqtt_server, 1883, callback, wifiClient);
 void setup() {
 	// Output auf 115200 baud
 	Serial.begin(115200);
-	delay(100);
-	// WLAN anschalten und verbinden
-	WiFi.begin(ssid, password);
-	// Die Funktion reconnect schaltet nacheinander WLAN an 
-	// und verbindet dann den MQTT-Client
-	reconnect();
-	// ein bisschen warten
-	delay(2000);
+	// Konfiguration starten.
+	configure();
 }
 
 void loop() {
@@ -78,6 +73,7 @@ void reconnect() {
 	// MQTT Verbindung
 	if(WiFi.status() == WL_CONNECTED){
 		Serial.println("<DBG> Attempting MQTT connection...");
+		client.setServer(mqtt_server, 1883);
 		//if connected, subscribe to the topic(s) we want to be notified about
 		if (client.connect("esp8266")) {
 			Serial.println("<DBG> MQTT Connected");
@@ -86,4 +82,83 @@ void reconnect() {
 			}
 		}
 	}
+}
+
+void configure() {
+	Serial.println("<DBG> need to be configured.");
+        Serial.println("<DBG> Config me like this:<delim><mqtt_server><delim><ssid><delim><pw><delim><topic><delim><topic>");
+	String config = "";
+        while(configured == false) {
+		while(Serial.available()) {
+			char c = (char) Serial.read();
+			if(c=='\r') {
+				configured = true;
+				String s_mqtt_server = "";
+				String s_ssid = "";
+				String s_pw = "";
+				int delimcount = 1;
+				int startOfTopics = 0;
+				char delim = config.charAt(0);
+				Serial.println("<DBG> System configured. Here is your config: ");
+				for(int i = 1; i < config.length(); i++) {
+					if(config.charAt(i) == delim) {
+						delimcount++;
+						if(delimcount == 4) {
+							startOfTopics = i + 1;
+						}
+					} else {
+						if(delimcount == 1) {
+							s_mqtt_server.concat(config.charAt(i));
+						}
+						if(delimcount == 2) {
+							s_ssid.concat(config.charAt(i));
+						}
+						if(delimcount == 3) {
+							s_pw.concat(config.charAt(i));
+						}
+					}
+				}
+				topics = delimcount - 3;
+				if(topics < 1) {
+					Serial.println("<DBG> Sorry you subscribed to no topic.");
+					abort();
+				}
+				String s_subTopics[topics];
+				int topiccounter = 0;
+				for(int i = startOfTopics; i < config.length(); i++) {
+					if(config.charAt(i) == delim) {
+						subTopics[topiccounter] = s_subTopics[topiccounter].c_str();
+						topiccounter++;
+
+					} else {
+						s_subTopics[topiccounter].concat(config.charAt(i));
+					}
+				}
+				subTopics[topics - 1] = s_subTopics[topics - 1].c_str();
+				mqtt_server=s_mqtt_server.c_str();
+				Serial.print("<DBG> MQTT-Server: ");
+				Serial.println(mqtt_server);
+				ssid=s_ssid.c_str();
+				Serial.print("<DBG> SSID: ");
+				Serial.println(ssid);
+				Serial.print("<DBG> pw: ");
+				password=s_pw.c_str();
+				Serial.println(s_pw);
+				Serial.print("<DBG> You subscribed to ");
+				Serial.print(topics);
+				Serial.println(" topics.");
+				for(int i = 0; i < topics; i++) {
+					Serial.print("<DBG> ");
+					Serial.println(subTopics[i]);
+				}
+				
+				// WLAN anschalten und verbinden
+				WiFi.begin(ssid, password);
+				delay(2000);
+				reconnect();
+			} else {
+				config.concat(c);
+			}
+		}
+        }
 }
