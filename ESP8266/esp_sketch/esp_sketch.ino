@@ -52,7 +52,7 @@ void loop() {
 	// dann einfach nur die Verbindung halten.
 	client.loop();
 	// Dieses warten braucht der ESP anscheinend fuer die WLAN-Verwaltung.
-	delay(10); 
+	delay(20); 
 	
 	// maybe someone wants to publish something so lets check the serial line:
 	serial_publish();
@@ -188,6 +188,7 @@ void configure() {
 				}
 				
 				// WLAN anschalten und verbinden
+        WiFi.disconnect(true);
 				WiFi.begin(ssid, password);
 				delay(2000);
 				reconnect();
@@ -199,7 +200,6 @@ void configure() {
         }
 }
 void serial_publish() {
-	client.publish("/malte", "test");
 	if(Serial.available()) {
 		// create Buffer:
 		String buf = "";
