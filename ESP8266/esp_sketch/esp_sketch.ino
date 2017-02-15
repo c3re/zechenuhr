@@ -190,6 +190,7 @@ void configure() {
 				// WLAN anschalten und verbinden
         WiFi.disconnect(true);
 				WiFi.begin(ssid, password);
+        WiFi.mode(WIFI_STA);
 				delay(2000);
 				reconnect();
 			// if the current char was not '\r' just concat the char and move on.	
