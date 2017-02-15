@@ -202,6 +202,7 @@ void configure() {
 }
 void serial_publish() {
 	if(Serial.available()) {
+    
 		// create Buffer:
 		String buf = "";
 		String topic = "";
@@ -245,6 +246,7 @@ void serial_publish() {
 			else {
 				buf.concat(c);
 			}
+     delay(1);
 		}
 	}
 }
