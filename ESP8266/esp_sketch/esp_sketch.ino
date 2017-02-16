@@ -83,7 +83,7 @@ void reconnect() {
 		Serial.println(mqtt_server);
 		client.setServer(mqtt_server, 1883);
 		//if connected, subscribe to the topic(s) we want to be notified about
-		if (client.connect("esp8266")) {
+		if (client.connect(WiFi.localIP().toString().c_str())) {
 			Serial.println("<DBG> MQTT Connected");
 			for(int i = 0; i < topics; i++) {
 				client.subscribe(subTopics[i]);
